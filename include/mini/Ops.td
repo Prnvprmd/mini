@@ -36,10 +36,11 @@ def AddOp : Mini_Op<"add", [Pure, SameOperandsAndResultType, DeclareOpInterfaceM
   let results = (outs Mini_ScalarOrTensor:$result);
 
   let hasVerifier = 1;
-  let hasCanonicalizer = 0;
+  let hasFolder = 1;
+  let hasCanonicalizer = 1;
 
-  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` functional-type(operands, results)";
-//   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+//   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` functional-type(operands, results)";
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 //   let assemblyFormat = "$lhs `,` $rhs attr-dict";
 
   let builders = [
