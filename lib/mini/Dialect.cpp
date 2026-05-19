@@ -29,5 +29,5 @@ void MiniDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "mini/Ops.cpp.inc"
-  >();
+      >();
 }

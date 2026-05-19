@@ -11,15 +11,10 @@ using namespace mlir;
 int main(int argc, char **argv) {
   DialectRegistry registry;
 
-  registry.insert<mini::MiniDialect,
-                  mlir::func::FuncDialect,
+  registry.insert<mini::MiniDialect, mlir::func::FuncDialect,
                   mlir::arith::ArithDialect>();
 
   registerTransformsPasses();
 
-  return failed(MlirOptMain(
-      argc,
-      argv,
-      "mini MLIR optimizer\n",
-      registry));
+  return failed(MlirOptMain(argc, argv, "mini MLIR optimizer\n", registry));
 }

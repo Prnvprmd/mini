@@ -10,22 +10,18 @@
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 
-
 using namespace mlir;
 using namespace mini;
 
 #define GET_OP_CLASSES
 #include "mini/Ops.cpp.inc"
 
-
 //===----------------------------------------------------------------------===//
 // AddOp
 //===----------------------------------------------------------------------===//
 
-void AddOp::build(mlir::OpBuilder &builder,
-                  mlir::OperationState &state,
-                  mlir::Value lhs,
-                  mlir::Value rhs) {
+void AddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
   state.addOperands({lhs, rhs});
   state.addTypes(lhs.getType());
 }
@@ -60,27 +56,22 @@ LogicalResult AddOp::verify() {
   return emitOpError("unsupported type");
 }
 
-
-
 //===----------------------------------------------------------------------===//
 // MulOp
 //===----------------------------------------------------------------------===//
 
-void MulOp::build(mlir::OpBuilder &builder,
-                  mlir::OperationState &state,
-                  mlir::Value lhs,
-                  mlir::Value rhs) {
+void MulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
   state.addOperands({lhs, rhs});
   state.addTypes(lhs.getType());
 }
-
 
 //===----------------------------------------------------------------------===//
 // MatmulOp
 //===----------------------------------------------------------------------===//
 
-
-static bool isCompatibleBatchDims(ArrayRef<int64_t> lhs, ArrayRef<int64_t> rhs) {
+static bool isCompatibleBatchDims(ArrayRef<int64_t> lhs,
+                                  ArrayRef<int64_t> rhs) {
   if (lhs.size() != rhs.size())
     return false;
 
@@ -91,7 +82,6 @@ static bool isCompatibleBatchDims(ArrayRef<int64_t> lhs, ArrayRef<int64_t> rhs) 
 
   return true;
 }
-
 
 LogicalResult MatmulOp::verify() {
   auto lhsType = llvm::dyn_cast<RankedTensorType>(getLhs().getType());
@@ -123,20 +113,15 @@ LogicalResult MatmulOp::verify() {
   if (lhsK != rhsK)
     return emitOpError("contracting dimensions mismatch");
 
-  ArrayRef<int64_t> lhsBatch =
-      lhsShape.drop_back(2);
-
-  ArrayRef<int64_t> rhsBatch =
-      rhsShape.drop_back(2);
+  ArrayRef<int64_t> lhsBatch = lhsShape.drop_back(2);
+  ArrayRef<int64_t> rhsBatch = rhsShape.drop_back(2);
 
   if (!isCompatibleBatchDims(lhsBatch, rhsBatch))
     return emitOpError("batch dimensions mismatch");
 
   SmallVector<int64_t> expectedResultShape;
 
-  expectedResultShape.append(lhsBatch.begin(),
-                             lhsBatch.end());
-
+  expectedResultShape.append(lhsBatch.begin(), lhsBatch.end());
   expectedResultShape.push_back(lhsShape[lhsRank - 2]);
   expectedResultShape.push_back(rhsShape[rhsRank - 1]);
 
@@ -146,10 +131,8 @@ LogicalResult MatmulOp::verify() {
   if (lhsType.getElementType() != rhsType.getElementType())
     return emitOpError("element types must match");
 
-  if (lhsType.getElementType() !=
-      resultType.getElementType())
+  if (lhsType.getElementType() != resultType.getElementType())
     return emitOpError("result element type mismatch");
 
   return success();
 }
-

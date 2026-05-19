@@ -1,7 +1,7 @@
 #include "mini/Ops.h"
 
-#include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Matchers.h"
+#include "mlir/IR/PatternMatch.h"
 #include "llvm/Support/Casting.h"
 
 using namespace mlir;
@@ -24,20 +24,17 @@ namespace {
 struct AddZeroFoldPattern : public OpRewritePattern<AddOp> {
   using OpRewritePattern::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(
-      AddOp op,
-      PatternRewriter &rewriter) const override {
+  LogicalResult matchAndRewrite(AddOp op,
+                                PatternRewriter &rewriter) const override {
 
     APInt value;
 
-    if (matchPattern(op.getRhs(), m_ConstantInt(&value)) &&
-        value.isZero()) {
+    if (matchPattern(op.getRhs(), m_ConstantInt(&value)) && value.isZero()) {
       rewriter.replaceOp(op, op.getLhs());
       return success();
     }
 
-    if (matchPattern(op.getLhs(), m_ConstantInt(&value)) &&
-        value.isZero()) {
+    if (matchPattern(op.getLhs(), m_ConstantInt(&value)) && value.isZero()) {
       rewriter.replaceOp(op, op.getRhs());
       return success();
     }
@@ -48,9 +45,8 @@ struct AddZeroFoldPattern : public OpRewritePattern<AddOp> {
 
 } // namespace
 
-void AddOp::getCanonicalizationPatterns(
-    RewritePatternSet &results,
-    MLIRContext *context) {
+void AddOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                        MLIRContext *context) {
 
   results.add<AddZeroFoldPattern>(context);
 }
