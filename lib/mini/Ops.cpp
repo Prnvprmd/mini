@@ -18,6 +18,9 @@ using namespace mini;
 #include "mini/Ops.cpp.inc"
 
 
+//===----------------------------------------------------------------------===//
+// AddOp
+//===----------------------------------------------------------------------===//
 
 void AddOp::build(mlir::OpBuilder &builder,
                   mlir::OperationState &state,
@@ -57,41 +60,96 @@ LogicalResult AddOp::verify() {
   return emitOpError("unsupported type");
 }
 
-// LogicalResult AddOp::inferReturnTypes(
-//     MLIRContext *context,
-//     std::optional<Location> location,
-//     ValueRange operands,
-//     DictionaryAttr attributes,
-//     OpaqueProperties properties,
-//     RegionRange regions,
-//     SmallVectorImpl<Type> &inferredReturnTypes)  {
 
-//   if (operands.size() != 2)
-//     return failure();
 
-//   Type lhsType = operands[0].getType();
-//   Type rhsType = operands[1].getType();
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
 
-//   if (lhsType != rhsType)
-//     return failure();
+void MulOp::build(mlir::OpBuilder &builder,
+                  mlir::OperationState &state,
+                  mlir::Value lhs,
+                  mlir::Value rhs) {
+  state.addOperands({lhs, rhs});
+  state.addTypes(lhs.getType());
+}
 
-//   inferredReturnTypes.push_back(lhsType);
 
-//   return success();
-// }
+//===----------------------------------------------------------------------===//
+// MatmulOp
+//===----------------------------------------------------------------------===//
 
-// LogicalResult AddOp::verify() {
-//   Type type = getResult().getType();
 
-//   if (type.isIntOrFloat())
-//     return success();
+static bool isCompatibleBatchDims(ArrayRef<int64_t> lhs, ArrayRef<int64_t> rhs) {
+  if (lhs.size() != rhs.size())
+    return false;
 
-//   if (auto tensorType = llvm::dyn_cast<TensorType>(type)) {
-//     if (!tensorType.getElementType().isIntOrFloat())
-//       return emitOpError("tensor element type must be numeric");
+  for (size_t i = 0; i < lhs.size(); ++i) {
+    if (lhs[i] != rhs[i])
+      return false;
+  }
 
-//     return success();
-//   }
+  return true;
+}
 
-//   return emitOpError("unsupported type");
-// }
+
+LogicalResult MatmulOp::verify() {
+  auto lhsType = llvm::dyn_cast<RankedTensorType>(getLhs().getType());
+  auto rhsType = llvm::dyn_cast<RankedTensorType>(getRhs().getType());
+  auto resultType = llvm::dyn_cast<RankedTensorType>(getResult().getType());
+
+  if (!lhsType || !rhsType || !resultType)
+    return emitOpError("requires ranked tensor operands/results");
+
+  if (lhsType.getRank() < 2)
+    return emitOpError("lhs must have rank >= 2");
+
+  if (rhsType.getRank() < 2)
+    return emitOpError("rhs must have rank >= 2");
+
+  auto lhsShape = lhsType.getShape();
+  auto rhsShape = rhsType.getShape();
+  auto resultShape = resultType.getShape();
+
+  int64_t lhsRank = lhsType.getRank();
+  int64_t rhsRank = rhsType.getRank();
+
+  if (lhsRank != rhsRank)
+    return emitOpError("lhs/rhs rank mismatch");
+
+  int64_t lhsK = lhsShape[lhsRank - 1];
+  int64_t rhsK = rhsShape[rhsRank - 2];
+
+  if (lhsK != rhsK)
+    return emitOpError("contracting dimensions mismatch");
+
+  ArrayRef<int64_t> lhsBatch =
+      lhsShape.drop_back(2);
+
+  ArrayRef<int64_t> rhsBatch =
+      rhsShape.drop_back(2);
+
+  if (!isCompatibleBatchDims(lhsBatch, rhsBatch))
+    return emitOpError("batch dimensions mismatch");
+
+  SmallVector<int64_t> expectedResultShape;
+
+  expectedResultShape.append(lhsBatch.begin(),
+                             lhsBatch.end());
+
+  expectedResultShape.push_back(lhsShape[lhsRank - 2]);
+  expectedResultShape.push_back(rhsShape[rhsRank - 1]);
+
+  if (expectedResultShape != resultShape)
+    return emitOpError("incorrect result shape");
+
+  if (lhsType.getElementType() != rhsType.getElementType())
+    return emitOpError("element types must match");
+
+  if (lhsType.getElementType() !=
+      resultType.getElementType())
+    return emitOpError("result element type mismatch");
+
+  return success();
+}
+

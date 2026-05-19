@@ -48,3 +48,82 @@ func.func @test8(%arg0 : f32) -> f32 {
 //   %0 = mini.add %a, %b : (tensor<4xf64>, tensor<4xf64>) -> tensor<4xf64>
 //   func.return %0 : tensor<4xf64>
 // }
+
+func.func @matmul_f32(
+    %a : tensor<2x3xf32>,
+    %b : tensor<3x4xf32>)
+    -> tensor<2x4xf32> {
+
+  %0 = mini.matmul %a, %b
+      : tensor<2x3xf32>,
+        tensor<3x4xf32>
+        -> tensor<2x4xf32>
+
+  return %0 : tensor<2x4xf32>
+}
+
+func.func @matmul_i32(
+    %a : tensor<8x16xi32>,
+    %b : tensor<16x32xi32>)
+    -> tensor<8x32xi32> {
+
+  %0 = mini.matmul %a, %b
+      : tensor<8x16xi32>,
+        tensor<16x32xi32>
+        -> tensor<8x32xi32>
+
+  return %0 : tensor<8x32xi32>
+}
+
+func.func @batched(
+    %a : tensor<5x2x3xf32>,
+    %b : tensor<5x3x4xf32>)
+    -> tensor<5x2x4xf32> {
+
+  %0 = mini.matmul %a, %b
+      : tensor<5x2x3xf32>,
+        tensor<5x3x4xf32>
+        -> tensor<5x2x4xf32>
+
+  return %0 : tensor<5x2x4xf32>
+}
+
+func.func @multi_batch(
+    %a : tensor<2x5x2x3xf32>,
+    %b : tensor<2x5x3x4xf32>)
+    -> tensor<2x5x2x4xf32> {
+
+  %0 = mini.matmul %a, %b
+      : tensor<2x5x2x3xf32>,
+        tensor<2x5x3x4xf32>
+        -> tensor<2x5x2x4xf32>
+
+  return %0 : tensor<2x5x2x4xf32>
+}
+
+// func.func @bad_k(
+//     %a : tensor<2x3xf32>,
+//     %b : tensor<5x4xf32>)
+//     -> tensor<2x4xf32> {
+
+//   %0 = mini.matmul %a, %b
+//       : tensor<2x3xf32>,
+//         tensor<5x4xf32>
+//         -> tensor<2x4xf32>
+
+//   return %0 : tensor<2x4xf32>
+// }
+
+
+// func.func @bad_batch(
+//     %a : tensor<5x2x3xf32>,
+//     %b : tensor<7x3x4xf32>)
+//     -> tensor<5x2x4xf32> {
+
+//   %0 = mini.matmul %a, %b
+//       : tensor<5x2x3xf32>,
+//         tensor<7x3x4xf32>
+//         -> tensor<5x2x4xf32>
+
+//   return %0 : tensor<5x2x4xf32>
+// }

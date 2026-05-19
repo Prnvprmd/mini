@@ -49,3 +49,43 @@ def AddOp : Mini_Op<"add", [Pure, SameOperandsAndResultType, DeclareOpInterfaceM
   ];
 }
 
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+def MulOp : Mini_Op<"mul", [Pure, SameOperandsAndResultType, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "element-wise multiplication operation";
+
+  let arguments = (ins Mini_ScalarOrTensor:$lhs,
+                       Mini_ScalarOrTensor:$rhs);
+
+  let results = (outs Mini_ScalarOrTensor:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+
+  let builders = [
+    OpBuilder<(ins "::mlir::Value":$lhs,
+                   "::mlir::Value":$rhs)>
+  ];
+}
+
+
+//===----------------------------------------------------------------------===//
+// MatmulOp
+//===----------------------------------------------------------------------===//
+
+def MatmulOp : Mini_Op<"matmul", [Pure]> {
+  let summary = "Matrix multiplication operation";
+
+  let arguments = (ins TensorOf<[AnyFloat, AnyInteger]>:$lhs,
+                       TensorOf<[AnyFloat, AnyInteger]>:$rhs);
+
+  let results = (outs TensorOf<[AnyFloat, AnyInteger]>:$result);
+
+  let hasVerifier = 1;
+
+  let assemblyFormat =
+      "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs) `->` type($result)";
+}
+
