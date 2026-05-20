@@ -3,6 +3,7 @@ add_mlir_dialect_library(MLIRMini
     Ops.cpp
     Dialect.cpp
     Canonicalization.cpp
+    Conversion.cpp
 
     DEPENDS
     MiniDialectIncGen
@@ -16,4 +17,9 @@ add_mlir_dialect_library(MLIRMini
     MLIRTensorDialect
     MLIRArithDialect
     MLIRCastInterfaces
+    MLIRAffineDialect
+    MLIRAffineUtils
+    MLIRMemRefDialect
+    MLIRSCFDialect
+    MLIRTransforms
 )

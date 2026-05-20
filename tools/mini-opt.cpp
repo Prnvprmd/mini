@@ -1,4 +1,5 @@
 #include "mini/Dialect.h"
+#include "mini/Passes.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -15,6 +16,8 @@ int main(int argc, char **argv) {
                   mlir::arith::ArithDialect>();
 
   registerTransformsPasses();
+
+  mini::registerMiniPasses();
 
   return failed(MlirOptMain(argc, argv, "mini MLIR optimizer\n", registry));
 }
