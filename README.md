@@ -14,17 +14,17 @@ make
 
 Run after adding AddOp or MatmulOp. Tests input shapes and dtypes
 ```sh
-${PROJECT_SOURCE_DIR}$/build/tools/mini-opt basic.mlir
+${PROJECT_SOURCE_DIR}/build/tools/mini-opt basic.mlir
 ```
 
 Run after adding Canonicalization Patterns(folding a + 0 = a)
 ```sh
-${PROJECT_SOURCE_DIR}$/build/tools/mini-opt --canonicalize basic.mlir
+${PROJECT_SOURCE_DIR}/build/tools/mini-opt --canonicalize basic.mlir
 ```
 
 Run after adding Lowering functions for AddOp and MatmulOp
 ```sh
-${PROJECT_SOURCE_DIR}$/build/tools/mini-opt --lower-mini-to-affine basic.mlir
+${PROJECT_SOURCE_DIR}/build/tools/mini-opt --lower-mini-to-affine basic.mlir
 
 ```
 
