@@ -4,12 +4,14 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+
 #include "mlir/IR/PatternMatch.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 
 using namespace mlir;
@@ -107,76 +109,78 @@ struct MatmulLowering : public OpRewritePattern<MatmulOp> {
 
     auto lhsType = llvm::dyn_cast<RankedTensorType>(op.getLhs().getType());
     auto rhsType = llvm::dyn_cast<RankedTensorType>(op.getRhs().getType());
+    auto resultType =
+        llvm::dyn_cast<RankedTensorType>(op.getResult().getType());
+
+    //
+    // Restrict initially to rank-2
+    //
 
     if (lhsType.getRank() != 2 || rhsType.getRank() != 2) {
       return failure();
     }
-    int64_t M = lhsType.getShape()[0];
-    int64_t K = lhsType.getShape()[1];
-    int64_t N = rhsType.getShape()[1];
+    auto elemType = resultType.getElementType();
 
-    auto elemType = lhsType.getElementType();
+    //
+    // Create output tensor
+    //
 
-    auto resultType = RankedTensorType::get({M, N}, elemType);
+    SmallVector<Value> dynSizes;
+    Value initTensor =
+        rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), elemType);
 
-    Value result = rewriter.create<tensor::EmptyOp>(
-        loc, ArrayRef<int64_t>{M, N}, elemType);
+    //
+    // Fill output tensor with zeros
+    //
+    Value zero = arith::ConstantOp::create(rewriter, loc, elemType,
+                                           rewriter.getZeroAttr(elemType));
+    Value filled =
+        rewriter.create<linalg::FillOp>(loc, zero, initTensor).getResult(0);
 
-    Value zero;
+    //
+    // Matmul indexing maps
+    //
+    AffineExpr i, j, k;
+    bindDims(rewriter.getContext(), i, j, k);
 
-    if (isa<FloatType>(elemType)) {
-      zero = rewriter.create<arith::ConstantOp>(
-          loc, rewriter.getFloatAttr(elemType, 0.0));
-    } else {
-      zero = rewriter.create<arith::ConstantOp>(
-          loc, rewriter.getIntegerAttr(elemType, 0));
-    }
+    SmallVector<AffineMap> indexingMaps = {
+        AffineMap::get(3, 0, {i, k}, rewriter.getContext()),
+        AffineMap::get(3, 0, {k, j}, rewriter.getContext()),
+        AffineMap::get(3, 0, {i, j}, rewriter.getContext())};
 
-    // Fill tensor with zeros.
-    for (int64_t i = 0; i < M; ++i) {
-      for (int64_t j = 0; j < N; ++j) {
-        Value iVal = rewriter.create<arith::ConstantIndexOp>(loc, i);
-        Value jVal = rewriter.create<arith::ConstantIndexOp>(loc, j);
+    //
+    // Iterator types
+    //
+    SmallVector<utils::IteratorType> iteratorTypes = {
+        utils::IteratorType::parallel, utils::IteratorType::parallel,
+        utils::IteratorType::reduction};
 
-        result = rewriter.create<tensor::InsertOp>(loc, zero, result,
-                                                   ValueRange{iVal, jVal});
-      }
-    }
-
-    // Accumulate products.
-    for (int64_t i = 0; i < M; ++i) {
-      for (int64_t j = 0; j < N; ++j) {
-        Value acc;
-
-        Value iVal = rewriter.create<arith::ConstantIndexOp>(loc, i);
-        Value jVal = rewriter.create<arith::ConstantIndexOp>(loc, j);
-
-        acc = rewriter.create<tensor::ExtractOp>(loc, result,
-                                                 ValueRange{iVal, jVal});
-
-        for (int64_t k = 0; k < K; ++k) {
-          Value kVal = rewriter.create<arith::ConstantIndexOp>(loc, k);
-
-          Value lhs = rewriter.create<tensor::ExtractOp>(
-              loc, op.getLhs(), ValueRange{iVal, kVal});
-          Value rhs = rewriter.create<tensor::ExtractOp>(
-              loc, op.getRhs(), ValueRange{kVal, jVal});
+    //
+    // Create linalg.generic
+    //
+    auto genericOp = linalg::GenericOp::create(
+        rewriter, loc, resultType, ValueRange{op.getLhs(), op.getRhs()},
+        ValueRange{filled}, indexingMaps, iteratorTypes,
+        [&](OpBuilder &nestedBuilder, Location nestedLoc,
+            ValueRange blockArgs) {
+          Value lhs = blockArgs[0];
+          Value rhs = blockArgs[1];
+          Value acc = blockArgs[2];
 
           Value mul;
+          Value sum;
 
           if (isa<FloatType>(elemType)) {
-            mul = rewriter.create<arith::MulFOp>(loc, lhs, rhs);
-            acc = rewriter.create<arith::AddFOp>(loc, acc, mul);
+            mul = nestedBuilder.create<arith::MulFOp>(nestedLoc, lhs, rhs);
+            sum = nestedBuilder.create<arith::AddFOp>(nestedLoc, acc, mul);
           } else {
-            mul = rewriter.create<arith::MulIOp>(loc, lhs, rhs);
-            acc = rewriter.create<arith::AddIOp>(loc, acc, mul);
+            mul = nestedBuilder.create<arith::MulIOp>(nestedLoc, lhs, rhs);
+            sum = nestedBuilder.create<arith::AddIOp>(nestedLoc, acc, mul);
           }
-        }
-        result = rewriter.create<tensor::InsertOp>(loc, acc, result,
-                                                   ValueRange{iVal, jVal});
-      }
-    }
-    rewriter.replaceOp(op, result);
+          nestedBuilder.create<linalg::YieldOp>(nestedLoc, sum);
+        });
+
+    rewriter.replaceOp(op, genericOp.getResults());
     return success();
   }
 };
@@ -201,9 +205,9 @@ struct LowerMiniToAffinePass
   }
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry
-        .insert<affine::AffineDialect, arith::ArithDialect, func::FuncDialect,
-                tensor::TensorDialect, memref::MemRefDialect>();
+    registry.insert<affine::AffineDialect, arith::ArithDialect,
+                    func::FuncDialect, tensor::TensorDialect,
+                    memref::MemRefDialect, linalg::LinalgDialect>();
   }
 
   llvm::StringRef getArgument() const final { return "lower-mini-to-affine"; }
