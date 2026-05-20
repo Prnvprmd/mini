@@ -1,6 +1,6 @@
 # MiniDialect
 
-And experimental custom MLIR dialect to understand basic concepts of MLIR, similar to ToyDialect from the MLIR docs.
+An experimental custom MLIR dialect to understand basic concepts of MLIR, similar to ToyDialect from the MLIR docs.
 
 ## Build Commands
 
