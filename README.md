@@ -39,9 +39,6 @@ Each commit covers this plan
 - create lowering passes for all operations, to lower mini ops to other dialects like tensor, arith, affine etc
     - initially, lower mini ops(with tensor inputs) to Low-Level Scalarized IR
     - lower to linalg.generic instead of previous.
-    - High Level dialect
-        - linalg.generic or
-        - affine loops
 - LIT tests
 - affine transforms
 - op fusions

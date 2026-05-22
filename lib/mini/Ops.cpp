@@ -66,6 +66,36 @@ void MulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.addTypes(lhs.getType());
 }
 
+LogicalResult MulOp::verify() {
+  Type lhsType = getLhs().getType();
+  Type rhsType = getRhs().getType();
+  Type resultType = getResult().getType();
+
+  // Operand types must match
+  if (lhsType != rhsType)
+    return emitOpError("operand types must match");
+
+  // Result type must match operands
+  if (lhsType != resultType)
+    return emitOpError("result type must match operand type");
+
+  // Scalars
+  if (lhsType.isIntOrFloat())
+    return success();
+
+  // Tensors
+  if (auto tensorType = llvm::dyn_cast<TensorType>(lhsType)) {
+    Type elemType = tensorType.getElementType();
+
+    if (!elemType.isIntOrFloat())
+      return emitOpError("tensor element type must be int or float");
+
+    return success();
+  }
+
+  return emitOpError("unsupported type");
+}
+
 //===----------------------------------------------------------------------===//
 // MatmulOp
 //===----------------------------------------------------------------------===//

@@ -62,6 +62,8 @@ def MulOp : Mini_Op<"mul", [Pure, SameOperandsAndResultType, DeclareOpInterfaceM
 
   let results = (outs Mini_ScalarOrTensor:$result);
 
+  let hasVerifier = 1;
+  
   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 
   let builders = [

@@ -3,7 +3,7 @@ add_mlir_dialect_library(MLIRMini
     Ops.cpp
     Dialect.cpp
     Canonicalization.cpp
-    Conversion.cpp
+    LowerToAffine.cpp
 
     DEPENDS
     MiniDialectIncGen
