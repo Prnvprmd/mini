@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
   registerTransformsPasses();
 
   mini::registerMiniPasses();
+  mini::registerMiniFusionPasses();
 
   return failed(MlirOptMain(argc, argv, "mini MLIR optimizer\n", registry));
 }
